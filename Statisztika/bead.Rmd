@@ -1,0 +1,535 @@
+---
+title: "Nagybeadandó"
+author: "Szendrei József"
+date: '2021 12 12 '
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Matematikai statisztika beadandó
+
+## Adathalmaz betöltése
+
+Első lépésben betöltöm az adatsetet.  
+
+```{r, echo =FALSE}
+load(url("https://zempleni.elte.hu/d42.RData"))
+df = xd
+```
+
+Most hogy betöltöttük nézzük meg alaposabban, mit is tartalmaz ez a file.
+
+```{r, echo =FALSE}
+str(df)
+```
+Az adatsetünk sorainak és oszlopainak száma: `r dim(df)`  
+Az első pár sora:
+
+```{r, echo = FALSE}
+head(df,5)
+```
+
+Minden sor egy ember adatait tartalmazza, az adatok pedig a következők: `r names(df)`  
+
+**Azaz összességében 500 ember fent említett adatait látjuk ebben az adathalmazban**  
+
+
+
+
+# Az adathalmaz vizsgálata  
+
+## Hibák keresése
+
+Nézzük meg először, hogy vannak-e nullértékek.
+A táblázatban összesen `r sum(is.null(df))` nullérték található, Szerencsénkre nincs benne.  
+
+Nézzük meg, hogy vannak-e üres értékek benne.
+A táblázatban összesen `r sum(is.na(df))` üres érték található.  
+
+*Mivel ez a későbbi elemzés során hibát okozna, ezért ezt az értéket javítani kell.*
+
+## Hiba kijavítása 
+
+Első lépésben megkeressük az üres értéket. Az érték a `r which(is.na(df))` . helyen található az adathalmazban ami pont az 50. sorban van.
+
+```{r, echo = FALSE}
+tail(df,3)
+```
+Az üres adat helyére az oszlopnak az átlagát fogom tenni.
+
+```{r}
+df[500,5] = round(mean(df$testmagasság, na.rm = T),0)
+```
+
+A javítás sikerességét gyorsan ellenőrizhetjük is.
+
+```{r}
+tail(df,3)
+```
+
+## Kiugró értékek ellenőrzése
+
+A 3 számot tartalmazó oszlopra érdemes megnézni a kiugró értékeket, azaz a maximumot és a minimumot.
+
+Az életkorok minimuma: `r min(df$kor)`év, maximuma: `r max(df$kor)`év, amik teljesen normális értékek.
+
+A testmagasságok minimuma: `r min(df$testmagasság)`cm, maximuma pedig `r max(df$testmagasság)`cm, amik szintén teljesen normális értékek.
+
+Végül pedig a jövedelmek minimuma: `r min(df$jövedelem)`ezer forint, maximuma pedig `r max(df$jövedelem)/1000` millió forint, amik ugyancsak teljesen normális értékek.  
+
+### Az adathalmazunk most már hibamentes, kezdhetjük az elemzést.
+
+
+
+
+# Leíró statisztikai elemzés
+
+## Egyszerű ábrák
+
+```{r}
+hist(df$kor, 
+     main="Életkorok hisztogrammja", 
+     xlab="Életkor", 
+     border="black", 
+     col="cyan",
+     xlim=c(20,70), 
+     breaks=10)
+```
+
+
+Az emebrek átlagos kora `r round(mean(df$kor),1)` év az átlagtól egyes emberek életkora `r round(sd(df$kor),1)` évvel tér el.
+Az emberek negyede legfeljebb `r quantile(df$kor,0.25)` éves és leggalább `r quantile(df$kor,0.75)` éves.
+
+
+
+```{r}
+boxplot(df$testmagasság,
+main = "Testmagasság",
+xlab = "cm",
+col = "orange",
+border = "brown",
+horizontal = TRUE,
+notch = TRUE
+)
+```
+
+
+Az emberek átlagos testmagassága `r round(mean(df$testmagasság),1)` cm, az átlagtól az egyes emberek magassága `r round(sd(df$testmagasság)/mean(df$testmagasság),2)*100`%-kal ami `r round(sd(df$testmagasság),1)` cmrel tér el.
+Az emberek fele `r quantile(df$testmagasság,0.25)` cm és `r quantile(df$testmagasság,0.75)` cm közt van.
+Az ábra két végén kiugró értéknek jelenhet meg az adat, de szeintem a `r min(df$testmagasság)`cm és a `r max(df$testmagasság)` cm teljesen életszerű normális magasság, ezért benne hagyom az adatok közt.
+
+
+```{r}
+stripchart(df$jövedelem,
+main="Az emberek jövedelme",
+xlab="ezer forint",
+method="jitter",
+col="chartreuse",
+)
+```
+
+
+Az emberek egyik felének legfeljebb, másik felének legalább `r quantile(df$jövedelem,0.5)` ezer forint a jövedelme. Az átlag jövedelem = `r round(mean(df$jövedelem),2)` ezer forint.Ábrán is jól látható, hogy az átlag az alsó kvartilisben található és a maximum jövedelem pedig eléggé kigró adat, ezért most korrigálok és kicserélem a maximum jövedelmet a jövedelmek átlagára. Úgy gondolom, hogy ekkora jövedelem nem elképzelhetetlen, de az adathalmaz szempontjából mégis ez a jó döntés.
+
+```{r}
+df$jövedelem[which(df$jövedelem == max(df$jövedelem))] = round(mean(df$jövedelem),0)
+```
+
+```{r}
+stripchart(df$jövedelem,
+main="Az emberek jövedelme",
+xlab="ezer forint",
+method="jitter",
+col="chartreuse",
+)
+```
+
+Két végletet figyelembe véve a legtöbb jövedelemmel rendelkező ember `r round(max(df$jövedelem)/min(df$jövedelem),2)`-szer keres annyit mint a legekevesebb jövedelemmel rendelkező ember, a különbség `r round((max(df$jövedelem)-min(df$jövedelem))/1000,2)`millió forint.
+
+
+## Specifikus ábrák
+
+
+
+```{r}
+
+dfff <- subset(df,df$nem == "férfi")
+dfno <- subset(df,df$nem == "nő")
+
+dfbe <- subset(df,df$város == "Békés")
+dfbp <- subset(df,df$város == "Budapest")
+dfbk <- subset(df,df$város == "Budakeszi")
+
+dfpi <- subset(df, df$foglalkozás == "Pincér")
+
+dfbppi <- subset(dfpi, dfpi$város == "Budapest")
+jövbppi <- dfbppi$jövedelem
+dfbepi <- subset(dfpi, dfpi$város == "Békés")
+jövbepi <- dfbepi$jövedelem
+dfbkpi <- subset(dfpi, dfpi$város == "Budakeszi")
+jövbkpi <- dfbkpi$jövedelem
+
+jövpi <- dfbp$jövedelem
+
+
+dfsz <- subset(df, df$foglalkozás == "Szabó")
+
+dfbpsz <- subset(dfsz, dfsz$város == "Budapest")
+jövbpsz <- dfbpsz$jövedelem
+dfbesz <- subset(dfsz, dfsz$város == "Békés")
+jövbesz <- dfbesz$jövedelem
+dfbksz <- subset(dfsz, dfsz$város == "Budakeszi")
+jövbksz <- dfbksz$jövedelem
+
+
+
+
+dfuv <- subset(df, df$foglalkozás == "Ügyvéd")
+dfbpuv <- subset(dfuv, dfuv$város == "Budapest")
+jövbpuv <- dfbpuv$jövedelem
+dfbeuv <- subset(dfuv, dfuv$város == "Békés")
+jövbeuv <- dfbeuv$jövedelem
+dfbkuv <- subset(dfuv, dfuv$város == "Budakeszi")
+jövbkuv <- dfbkuv$jövedelem
+
+
+
+jövuv <- dfbe$jövedelem
+jövsz <- dfbk$jövedelem
+
+```
+
+Nézzük meg a fizetéseket különböző foglalkozások, települések és nemek esetén.
+
+
+
+
+
+```{r}
+boxplot(df$jövedelem~df$város,
+main="Városonkénti fizetések",
+xlab="Városok",
+ylab="ezer Ft",
+col="gold",
+border="brown"
+)
+```
+
+
+
+Jól látszik az ábrán, hogy bár az emberek háromnegyed részének Budapesten `r quantile(dfbp$jövedelem, 0.75)` Ft, Békésen `r quantile(dfbe$jövedelem, 0.75)` Ft és Budakeszin `r quantile(dfbk$jövedelem, 0.75)` Ft a maximum jövedelme, de Budapesten sokkal több a felfelé kiugró adat.
+
+
+`
+```{r}
+boxplot(df$jövedelem~df$foglalkozás,
+main="Foglalkozásonkénti fizetések",
+xlab="Foglalkozások",
+ylab="ezer Ft",
+col="lightseagreen",
+border="black"
+)
+```
+
+
+
+
+A foglalkozásokat megfigyelve tisztán látszik, hogy az ügyvédek átlagjövedelme meghaladja a pincérek vagy szabók átlagjövedelmét. A legkevesebb jövedelemmel rendelkező ügyvéd jövedelme(`r min(dfuv$jövedelem)`) is nagyobb, minta pincérek felső kvartilise (`r quantile(dfpi$jövedelem, 0.75)`)
+
+
+
+```{r}
+boxplot(df$jövedelem~df$nem,
+main="Nemenkénti fizetések",
+xlab="Nemek",
+ylab="ezer Ft",
+col="burlywood4",
+border="black"
+)
+```
+
+
+A nemenkénti boxplot válasz ad arra a kérdésre, hogy a nők vagy a férfiak keresnek átlagosan többet. A férfiak átlagfizetése `r round(mean(dfff$jövedelem),0)` ezer forint, míg a nőké `r round(mean(dfno$jövedelem),0)` ezer forint.
+
+
+```{r, eval=TRUE}
+table(df$nem)
+```
+A megkérdezett emberek nagyobb része nő volt.
+
+
+```{r, eval=TRUE}
+table(df$foglalkozás,df$város)
+```
+
+A gyakorisági táblázat megmutatja, hogy az adott helyen az adott foglalkozásból hány ember szerepel az adathalmazban. Jól látható, hogy a megkérdezett emberek nagyjából fele, egész pontosan `r length(dfbp$jövedelem)` ember fővárosban él, a legtöbb megkérdezett embernek pedig ügyvéd a foglalkozása.
+
+### konfidenciaintervallumok
+
+
+```{r}
+mag = df$testmagasság
+magn = length(mag)
+alpha = 0.05
+
+magsdd = sd(mag)
+magci_alsoi <- mean(mag)-qt(1-alpha/2, df=magn-1)*magsdd/sqrt(magn)
+magci_felsoi <- mean(mag)+qt(1-alpha/2, df=magn-1)*magsdd/sqrt(magn)
+
+```
+
+Magasság alsó konfidenciaintervalluma `r magci_alsoi`, felső intervalluma `r magci_felsoi`
+
+
+```{r}
+jöv = df$jövedelem
+jövn = length(jöv)
+alpha = 0.05
+
+jövsdd = sd(jöv)
+jövci_alsoi <- mean(jöv)-qt(1-alpha/2, df=jövn-1)*jövsdd/sqrt(jövn)
+jövci_felsoi <- mean(jöv)+qt(1-alpha/2, df=jövn-1)*jövsdd/sqrt(jövn)
+
+```
+
+Jövedelem alsó konfidenciaintervalluma `r jövci_alsoi`, felső intervalluma `r jövci_felsoi`
+
+# Hipotézisvizsgálat normális eloszlást feltételezve
+
+## Békési ügyvédek jövedelem
+
+Azt szeretnénk vizsgálni, hogy a békési ügyvédek jövedelme kevesebb-e mint 1 millió forint.
+
+H0: m = m0  
+h1: m < m0
+
+Segítségképp kirajzolunk egy ábrát
+
+```{r}
+boxplot(jövbeuv)
+```
+
+Egymintás, ismeretlen szórású, normális eloszlású eset -> t-próbát fogunk alkalmazni.
+
+
+```{r}
+t.test(jövbeuv,mu = 1000,alternative ="less")
+```
+A próba alapján 95%-os megbízhatósággal H0-t elfogadjuk, azaz nem tudjuk elvetni
+
+95%-os megbízhatóság esetén azt mondhatjuk, hogy a békési ügyvédek fizetése egyenlő 1 millió forinttal
+
+## Budakeszi és Békés jövedelme 
+
+Ismerjük a Békésen élő emberek jövedelmét illetve a Budakeszin elő emberek jövedelmét. Állíthatjuk-e azt, hogy Békésen jobban élnek-e az emebrek?
+H0 m1=m2  
+H1 m1>m2
+
+Kétmintás, ismeretlen szórású, normális eloszlású eset -> F-próbát fogunk alkalmazni.
+
+```{r}
+var.test(dfbk$jövedelem, dfbe$jövedelem)
+```
+Az F-próba p-értéke nagyobb minden értelmes szignifikanciaszintnél, ezért nem tudjuk elvetni a szórások egyezőségét. Így kétmintás t próbát fogunk alkalmazni.
+
+```{r}
+t.test(dfbk$jövedelem, dfbe$jövedelem, alternative="less",var.equal=T)
+```
+P-érték 58% ami nagyobb minden értelmes szignifikanciaszintnél, gyenge döntés
+95%-os megbízhatóság eseten nem állíthatjuk, hogy jobban élnek Békésen mint Budakeszin.
+
+## Pincérek és Szabók jövedelme 
+
+Ismerjük az adathalmazban a pincérek és a szabók jövedelmét. Állíthatjuk-e azt, hogy a jövedelmükben nincs eltérés?
+
+H0: m0 = m1  
+H1: m0 != m1
+
+Mivel a szórások ismeretlenek ezért F próbára lesz szükség.
+
+```{r}
+var.test(jövpi, jövsz)
+```
+Mivel a p-érték kisebb mint 5%-os szignifikanciaszintnél, ezért el tudjuk vetni a szórások egyezőségét.
+Welch próbát kell végrehajtanunk
+
+```{r}
+t.test(jövpi, jövsz, paired=F, var.equal=F)
+```
+A p-érték 15,8%, így például 5%-os elsőfajú hiba valószínűsége esetén nem tudjuk elvetni H0-t, Gyenge döntés.  
+95%-os megbízhatósági szintnél azt állíthatjuk, hogy a szabók és a pincérek jövedelme egyezik.
+
+
+## Budapesti ügyvédek és békési ügyvédek összehasonlítása
+
+Megvizsgáljuk a budapesti és a békési ügyvédek jövedelmeit. Először eldöntjük, melyik állítást érdemes vizsgálni.
+
+```{r}
+jövbpuv
+jövbeuv
+
+shapiro.test(jövbkuv)
+
+mean(jövbpuv)
+mean(jövbeuv)
+
+```
+Mivel a dudapesti ügyvédek átlagjövedelme nagyobb ezért azt éri meg vizsgálni.
+H0: m0=m1  
+H1: m1>m0
+
+A minták függetlenek és a szórások nem ismertek, ezért előzetes F-próbát kell először végrehajtani a szórások egyezőségére vonatkozóan.
+
+```{r}
+var.test(jövbpuv, jövbeuv)
+```
+Mivel a p-érték 1% ezért el tudjuk vetni a H0-t azaz a szórások egyezőségét.
+
+```{r}
+t.test(jövbpuv, jövbeuv, alternative="greater", paired=F, var.equal=F)
+```
+
+Mivel a p-érték 1% ezért el tudjuk vetni a H0-t, erős döntés született
+Azt állíthatjuk, hogy a budapesti ügyvédek jövedelme nagyobb mint a békési ügyvédeké 95%-os megbízhatósági sznten
+
+
+
+
+# Hipotézisvizsgálat nem normális eloszlást feltételezve
+
+## Békési szabók és budakeszin élő szabók jövedelme
+Arra vagyunk kíváncsiak, hogy a békési szabók és a budakeszin élő szabók jövedelme megegyezik-e?  
+H0: m0 = m1  
+H1: m0 != m1
+
+```{r}
+shapiro.test(dfbesz$jövedelem)
+shapiro.test(dfbksz$jövedelem)
+```
+Normalitásvizsgálattal megvizsgáltuk, hogy egyik minta sem származik normális eloszlásból.
+
+```{r}
+wilcox.test(dfbesz$jövedelem,dfbksz$jövedelem)
+```
+
+Mivel a p érték nagyobb mint 5% ezért nem tudjuk elvetni H0-t
+95%-os megbízhatósággal azt állíthatjuk, hogy a Budakeszin és a Békésen élő szabók jövedelme megegyezik.
+
+
+
+
+# lineáris model illesztése
+
+## Stringet tartalmazó mezők lecserélése
+```{r}
+
+dff=df
+
+dff$ferfi <- ifelse(dff$nem == 'férfi', 1, 0)
+dff$no <- ifelse(dff$nem == 'nő', 1, 0)
+
+dff$pincer <- ifelse(dff$foglalkozás == 'Pincér',1,0)
+dff$szabo <- ifelse(dff$foglalkozás == 'Szabó',1,0)
+dff$ugyved <- ifelse(dff$foglalkozás == 'Ügyvéd',1,0)
+
+dff$budapest <- ifelse(dff$város == 'Budapest',1,0)
+dff$budakeszi <- ifelse(dff$város == 'Budakeszi',1,0)
+dff$bekes <- ifelse(dff$város == 'Békés',1,0)
+
+rdf = subset(dff, select = -c(nem,foglalkozás,város) )
+
+```
+
+## Kovarianciamátrix létrehozása
+
+
+```{r, eval=T}
+round(cor(rdf),3)
+```
+
+## Lineáris model illesztése, minden paraméterrel
+
+```{r, eval=T}
+fitt0=lm(jövedelem~kor+testmagasság+ferfi+no+pincer+szabo+ugyved+budapest+budakeszi+bekes,data=rdf)
+summary(fitt0)
+extractAIC(fitt0)
+```
+
+Szignifikáns mezőket megtartjuk, a nem szignifikánsakat kidobjuk.
+
+
+```{r, eval =TRUE}
+fitt1=lm(jövedelem~kor+testmagasság+pincer+szabo+budapest,data=rdf)
+summary(fitt1)
+extractAIC(fitt1)
+```
+
+Ez tűnik a legjobb választásnak, de megpróbáljuk még kihagyni a testmagasságot.
+
+```{r, eval =TRUE}
+fitt2=lm(jövedelem~kor+pincer+szabo+budapest,data=rdf)
+summary(fitt2)
+extractAIC(fitt2)
+```
+
+Rosszabb lett a model, maradunk az előzőnél.
+
+### Az ember jövedeleme függ az ember korától, testmagasságától, attől hogy szabó-e vagy pincér és hogy budapesti-e
+
+## Logikusabb megközelítés
+
+Azokat az adatokat hagyom bent amik szerintem fontosak a jövedelemhez
+
+```{r, eval =TRUE}
+fitt3=lm(jövedelem~kor+testmagasság+ferfi+ugyved+budapest,data=rdf)
+summary(fitt3)
+extractAIC(fitt3)
+```
+Látható, hogy a modellem kicsit jobb mint az előző esetben, tényleg ezektől az adatoktól függ a jövedelema  legjobban.
+
+### Az adatok pedig a: kor, testmagasság, férfi nem, budapesti lakhely
+
+
+
+
+## Becslés
+
+Becsléshez létrehozok egy modelt minden paraméterrel.
+
+```{r}
+fitt0=lm(jövedelem~kor+testmagasság+ferfi+no+pincer+szabo+ugyved+budapest+budakeszi+bekes,data=rdf)
+```
+
+Egyesével megnézzük egy 178 cm magas 43 éves férfi milyen településen, melyik szakmával mennyi jövedelmet ér el.
+
+
+
+Egy 178 cm magas 43 éves budapesti pincér jövedelme: `r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=1,szabo=0,ugyved=0,budapest=1,budakeszi=0,bekes=0))),2)`  
+
+Egy 178 cm magas 43 éves budapesti szabó jövedelme: `r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=0,szabo=1,ugyved=0,budapest=1,budakeszi=0,bekes=0))),2)`  
+
+Egy 178 cm magas 43 éves budapesti ügyvéd jövedelme: `r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=0,szabo=0,ugyved=1,budapest=1,budakeszi=0,bekes=0))),2)`  
+
+
+Egy 178 cm magas 43 éves Budakeszin élő pincér jövedelme:`r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=1,szabo=0,ugyved=0,budapest=0,budakeszi=1,bekes=0))),2)`  
+
+Egy 178 cm magas 43 éves Budakeszin élő szabó jövedelme:`r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=0,szabo=1,ugyved=0,budapest=0,budakeszi=1,bekes=0))),2)`  
+
+Egy 178 cm magas 43 éves Budakeszin élő ügyvéd jövedelme:`r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=0,szabo=0,ugyved=1,budapest=0,budakeszi=1,bekes=0))),2)`  
+
+
+
+Egy 178 cm magas 43 éves békési pincér jövedelme:`r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=1,szabo=0,ugyved=0,budapest=0,budakeszi=0,bekes=1))),2)`  
+
+Egy 178 cm magas 43 éves békési szabó jövedelme:`r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=0,szabo=1,ugyved=0,budapest=0,budakeszi=0,bekes=1))),2)`  
+
+Egy 178 cm magas 43 éves békési ügyvéd jövedelme:`r round((predict(fitt0,data.frame(kor=42,testmagasság=178,ferfi=1,no=0,pincer=0,szabo=0,ugyved=1,budapest=0,budakeszi=0,bekes=1))),2)`  
+
+
+
